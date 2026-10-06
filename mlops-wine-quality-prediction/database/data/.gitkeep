@@ -1,0 +1,5 @@
+# This directory is used to store the winequality.csv file
+# Place your winequality.csv file here before running docker-compose up
+
+
+
