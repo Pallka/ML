@@ -1,5 +1,7 @@
 # MLOps: Wine Quality Prediction
 
+**English** | [Українська](README.uk.md)
+
 A containerized ML system that predicts red wine quality (`quality`, scale 0–10) from physicochemical features. It consists of three services: PostgreSQL for data storage, a FastAPI service for training and prediction, and a Streamlit web interface.
 
 The dataset is [Wine Quality](https://archive.ics.uci.edu/dataset/186/wine+quality) (UCI Machine Learning Repository). A copy of the red wine subset is also available on [Kaggle](https://www.kaggle.com/datasets/uciml/red-wine-quality-cortez-et-al-2009).
@@ -12,6 +14,7 @@ The dataset is [Wine Quality](https://archive.ics.uci.edu/dataset/186/wine+quali
 - [Prerequisites](#prerequisites)
 - [Quick Start](#quick-start)
 - [Usage](#usage)
+- [Configuration](#configuration)
 - [API Reference](#api-reference)
 - [Data and Preprocessing](#data-and-preprocessing)
 - [Project Structure](#project-structure)
@@ -33,7 +36,7 @@ The dataset is [Wine Quality](https://archive.ics.uci.edu/dataset/186/wine+quali
 ```text
 Streamlit (8501)  →  Models API (8000)  →  PostgreSQL (5432)
                          ↓
-              models/*.pkl + metadata
+           artifacts/*.pkl + metadata
 ```
 
 | Service | Container | Port | Purpose |
@@ -45,8 +48,8 @@ Streamlit (8501)  →  Models API (8000)  →  PostgreSQL (5432)
 ## Tech Stack
 
 - **Database:** PostgreSQL
-- **Backend:** Python, FastAPI, scikit-learn
-- **Frontend:** Streamlit
+- **Backend:** Python 3.11, FastAPI, scikit-learn, SQLAlchemy
+- **Frontend:** Streamlit, Plotly
 - **Infrastructure:** Docker, Docker Compose
 
 ## Prerequisites
@@ -60,7 +63,17 @@ The dataset file `database/data/winequality.csv` is already in the repository (`
 
 Run all commands from the project root (`mlops-wine-quality-prediction`).
 
-**1. Build and start the services**
+**1. (Optional) Create a local configuration file**
+
+The stack starts with built-in defaults, so you can skip this step. To use your own database credentials, copy the template and edit it (see [Configuration](#configuration)):
+
+```bash
+cp .env.example .env
+```
+
+On Windows (cmd): `copy .env.example .env`
+
+**2. Build and start the services**
 
 ```bash
 docker compose up --build
@@ -68,7 +81,7 @@ docker compose up --build
 
 This keeps running in the terminal. Open a second terminal for the next steps, or add `-d` to run in the background.
 
-**2. Load the dataset into the database**
+**3. Load the dataset into the database**
 
 Once the containers are up:
 
@@ -78,10 +91,9 @@ Once the containers are up:
   .\init_database.ps1
   ```
 
-- Linux / macOS:
+- Linux / macOS (if you get "permission denied", run `bash init_database.sh` instead):
 
   ```bash
-  chmod +x init_database.sh
   ./init_database.sh
   ```
 
@@ -93,7 +105,7 @@ Once the containers are up:
 
 If the table is already populated, the script does not insert anything again.
 
-**3. Open the interfaces**
+**4. Open the interfaces**
 
 | Interface | URL |
 |---|---|
@@ -123,18 +135,27 @@ docker compose down -v
 
 Prediction uses the same min–max normalization parameters that were computed during training.
 
-### Database access
+## Configuration
 
-Local credentials, **for the learning environment only** (do not reuse them in production):
+Database credentials are read from environment variables or from a `.env` file next to `docker-compose.yml` (create it from `.env.example`). Every variable has a default, so `.env` is optional.
 
-| Parameter | Value |
-|---|---|
-| User | `mlops_user` |
-| Password | `mlops_password` |
-| Database | `mlops_db` |
+| Variable | Default | Purpose |
+|---|---|---|
+| `POSTGRES_USER` | `mlops_user` | Database user (shared by `database` and `models_api`) |
+| `POSTGRES_PASSWORD` | `mlops_password` | Database password |
+| `POSTGRES_DB` | `mlops_db` | Database name |
+
+The API container also reads `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD` and `DB_NAME` (filled in by `docker-compose.yml` from the variables above) and `MODELS_DIR` (where trained models are stored; default `artifacts`, i.e. `models_api/artifacts/` on the host).
+
+> **Notes**
+>
+> - The defaults are meant for the **local learning environment only**. Do not reuse them anywhere else.
+> - PostgreSQL applies these credentials only when the database volume is first created. After changing them, reset the volume with `docker compose down -v` and load the dataset again.
+
+Open a `psql` session in the database container:
 
 ```bash
-docker exec -it mlops_database psql -U mlops_user -d mlops_db
+docker exec -it mlops_database sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
 ```
 
 ## API Reference
@@ -148,6 +169,8 @@ docker exec -it mlops_database psql -U mlops_user -d mlops_db
 | `GET` | `/metrics/{model_name}` | Metrics and training date |
 
 `model_name` is one of: `linear_regression`, `random_forest`, `gradient_boosting`.
+
+Every input feature has a valid range (shown in the interactive documentation). Values outside it are rejected with HTTP `422`, and predicting with a model that has not been trained returns `404`.
 
 Interactive documentation is available at http://localhost:8000/docs.
 
@@ -191,50 +214,61 @@ mlops-wine-quality-prediction/
 │   ├── Dockerfile
 │   ├── init.sql
 │   └── data/
-│       ├── .gitkeep
 │       └── winequality.csv
 ├── models_api/
 │   ├── Dockerfile
+│   ├── .dockerignore
 │   ├── requirements.txt
 │   ├── app.py
+│   ├── artifacts/              # trained models (*.pkl), git-ignored
+│   │   └── .gitkeep
 │   ├── models/
+│   │   ├── __init__.py
 │   │   ├── model_trainer.py
 │   │   └── model_predictor.py
 │   ├── scripts/
 │   │   └── load_data_to_db.py
 │   └── utils/
+│       ├── __init__.py
 │       └── data_processor.py
 ├── streamlit_app/
 │   ├── Dockerfile
+│   ├── .dockerignore
 │   ├── requirements.txt
 │   └── app.py
 ├── docker-compose.yml
+├── .env.example
+├── .gitignore
 ├── init_database.ps1
 ├── init_database.sh
-├── .gitignore
-└── README.md
+├── README.md
+└── README.uk.md
 ```
 
 ## Troubleshooting
 
-- **Training or prediction fails because there is no data:** make sure the dataset was loaded (step 2 of [Quick Start](#quick-start)).
-- **Prediction does not work for a model:** the model must be trained first. Check `GET /models` and look for it in `trained_models`.
+- **Training fails with an empty or unavailable database:** make sure the dataset was loaded (step 3 of [Quick Start](#quick-start)).
+- **Prediction returns 404:** the model must be trained first. Check `GET /models` and look for it in `trained_models`.
 - **A port is already in use:** stop whatever is using 5432, 8000 or 8501, or change the port mapping in `docker-compose.yml`.
+- **Trained models are missing after an update:** models are now stored in `models_api/artifacts/`. Models saved by earlier versions in `models_api/models/` are not picked up, so train them again. Retraining is also needed after upgrading scikit-learn, because pickled models are tied to the library version.
+- **Database login fails after changing the credentials:** PostgreSQL keeps the credentials from the first start. Run `docker compose down -v` and start again.
 - **Need a clean slate:** run `docker compose down -v` and start again from [Quick Start](#quick-start).
 
 ## Development Notes
+
+`docker-compose.yml` is a development setup: the source folders are bind-mounted into the containers and the API runs with `--reload`, so code changes are applied without rebuilding the images. Trained models therefore appear on the host in `models_api/artifacts/`.
 
 The following are **not** committed (see `.gitignore`):
 
 - `__pycache__/`, `*.pyc`
 - `venv/`, `.venv/`
-- `.env`
-- trained models `*.pkl`
+- `.env` (the template `.env.example` is committed)
+- trained models: `models_api/artifacts/*` and any `*.pkl`
 - IDE and OS service files
 
-The CSV `database/data/winequality.csv` is committed. Models appear in `models_api/models/` locally after `POST /train/...` and are ignored by git.
+The CSV `database/data/winequality.csv` is committed. The `.dockerignore` files keep caches, local environments and trained models out of the Docker build context.
 
-If git is initialized in a parent folder (e.g. `ML/`), the root `.gitignore` there covers the same patterns for the whole repository.
+Python dependencies are pinned in `models_api/requirements.txt` and `streamlit_app/requirements.txt`; the Docker images use Python 3.11.
 
 ## Dataset Citation
 

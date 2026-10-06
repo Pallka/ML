@@ -131,7 +131,7 @@ if page == "Прогнозування":
                             },
                         ))
                         fig.update_layout(height=300)
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig, width="stretch")
                     else:
                         st.error(response.json().get("detail", "Невідома помилка"))
                 except requests.RequestException as e:
@@ -204,7 +204,7 @@ elif page == "Метрики моделей":
                         y=[train_metrics["rmse"], train_metrics["mae"], train_metrics["r2"]],
                         marker_color="lightblue",
                     )])
-                    st.plotly_chart(fig_train, use_container_width=True)
+                    st.plotly_chart(fig_train, width="stretch")
                     st.write(f"**RMSE:** {train_metrics['rmse']:.4f}")
                     st.write(f"**MAE:** {train_metrics['mae']:.4f}")
                     st.write(f"**R²:** {train_metrics['r2']:.4f}")
@@ -215,7 +215,7 @@ elif page == "Метрики моделей":
                         y=[test_metrics["rmse"], test_metrics["mae"], test_metrics["r2"]],
                         marker_color="lightgreen",
                     )])
-                    st.plotly_chart(fig_test, use_container_width=True)
+                    st.plotly_chart(fig_test, width="stretch")
                     st.write(f"**RMSE:** {test_metrics['rmse']:.4f}")
                     st.write(f"**MAE:** {test_metrics['mae']:.4f}")
                     st.write(f"**R²:** {test_metrics['r2']:.4f}")

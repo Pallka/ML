@@ -12,7 +12,7 @@ class ModelPredictor:
 
     def __init__(self):
         self.processor = DataProcessor()
-        self.models_dir = "models"
+        self.models_dir = os.getenv("MODELS_DIR", "artifacts")
 
     def get_trained_models(self) -> list:
         if not os.path.isdir(self.models_dir):

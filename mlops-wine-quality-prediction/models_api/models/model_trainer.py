@@ -17,7 +17,7 @@ class ModelTrainer:
 
     def __init__(self):
         self.processor = DataProcessor()
-        self.models_dir = "models"
+        self.models_dir = os.getenv("MODELS_DIR", "artifacts")
         os.makedirs(self.models_dir, exist_ok=True)
         self.model_definitions = {
             "linear_regression": {

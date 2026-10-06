@@ -77,22 +77,25 @@ def load_data():
             }
         )
 
+        columns = [
+            "fixed_acidity",
+            "volatile_acidity",
+            "citric_acid",
+            "residual_sugar",
+            "chlorides",
+            "free_sulfur_dioxide",
+            "total_sulfur_dioxide",
+            "density",
+            "pH",
+            "sulphate",
+            "alcohol",
+            "quality",
+        ]
+        # Convert to built-in Python types: with NumPy 2 psycopg2 would otherwise
+        # receive np.float64 / np.int64 objects and generate invalid SQL.
         insert_data = [
-            (
-                row["fixed_acidity"],
-                row["volatile_acidity"],
-                row["citric_acid"],
-                row["residual_sugar"],
-                row["chlorides"],
-                row["free_sulfur_dioxide"],
-                row["total_sulfur_dioxide"],
-                row["density"],
-                row["pH"],
-                row["sulphate"],
-                row["alcohol"],
-                row["quality"],
-            )
-            for _, row in df.iterrows()
+            (*map(float, row[:-1]), int(row[-1]))
+            for row in df[columns].itertuples(index=False, name=None)
         ]
         cursor.executemany(
             """

@@ -14,12 +14,15 @@ build/
 .pytest_cache/
 .ipynb_checkpoints/
 
-# Trained models
+# Trained models (created by POST /train/...; the folder itself stays tracked)
+models_api/artifacts/*
+!models_api/artifacts/.gitkeep
 *.pkl
 
-# Environment
+# Environment and secrets (the template stays tracked)
 .env
 .env.*
+!.env.example
 
 # IDE
 .vscode/
